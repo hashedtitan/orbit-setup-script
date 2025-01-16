@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface IDecrypter {
-    function decrypt(uint8[] memory c, uint8[] memory skbytes) external returns (uint8[] memory);
-}
-
 /**
  * @title Simple Sealed Bid Auction App Example
- * @notice Example Auction App showcasing Solidity and Arbitrum Stylus Integrations with Fairblock Technologies. 
+ * @notice Example Auction App showcasing Solidity and Arbitrum Orbit Integrations with Fairblock. 
  * @dev Functions as a sealed-bid auction where bids are submitted encrypted and revealed using a decryption key once a certain time is passed, triggering the end of the auction. The auctionOwner gets the bid amount; this is assuming that the auction is tied to some offchain deliverable (Art auction etc.).
  * @dev This is purely for educational purposes and is not ready for production. Developers must carry out their own due diligence when it comes to deployment of smart contracts in production, including but not limited to, thorough audits, secure design practices, etc.
  * @dev Actual transference of funds are not enacted within this example, as the main purpose is to showcase the use of encryption and conditional decryption and execution using Fairblock technologies. Decrypted values (bids) can be used with typical smart contract patterns for auction payments.
@@ -17,7 +13,7 @@ contract SealedBidAuctionExample {
     /// @notice Represents a bid entry in the auction
     struct BidEntry {
         address bidder;        // Address of the bidder
-        uint8[] encryptedBid;  // Encrypted bid amount
+        bytes encryptedBid;    // Encrypted bid amount
         bool isDecrypted;      // Whether the bid has been decrypted
         uint256 bidValue;      // The actual bid value after decryption
     }
@@ -28,8 +24,8 @@ contract SealedBidAuctionExample {
     /// @notice Owner of the auction who receives the highest bid amount
     address public auctionOwner;
 
-    /// @notice Reference to an external decryption contract
-    IDecrypter public decrypterContract;
+    /// @notice Reference to precompileAddress where Decryption functionality resides
+    address precompileAddress;
 
     /// @notice Block number after which bids can be revealed
     uint256 public bidCondition;
@@ -68,24 +64,24 @@ contract SealedBidAuctionExample {
 
     /**
      * @notice Initializes the auction with a decryption contract, a deadline, and a fee.
-     * @param _decrypter Address of the decryption contract
      * @param _deadline The block number after which bids can be revealed
      * @param _fee The fee required to submit a bid
      */
-    constructor(address _decrypter, uint256 _deadline, uint256 _fee) {
+    constructor(uint256 _deadline, uint256 _fee) {
         auctionOwner = msg.sender;
-        decrypterContract = IDecrypter(_decrypter);
+        precompileAddress = address(0x0000000000000000000000000000000000000094);
         bidCondition = _deadline;
         auctionFee = _fee;
         auctionFinalized = false;
         emit AuctionInitialized(_deadline, _fee);
+
     }
 
     /**
      * @notice Submits an encrypted bid along with the required fee.
-     * @param encryptedBid The encrypted bid value in `uint8[]` format
+     * @param encryptedBid The encrypted bid value in `bytes` format
      */
-    function submitEncryptedBid(uint8[] calldata encryptedBid) 
+    function submitEncryptedBid(bytes calldata encryptedBid) 
         external 
         payable 
     {
@@ -106,35 +102,50 @@ contract SealedBidAuctionExample {
      * @notice Reveals all bids using the provided decryption key and determines the winner.
      * @param decryptionKey The decryption key to unlock the encrypted bids
      */
-    function revealBids(uint8[] calldata decryptionKey) external {
-        require(block.timestamp >= bidCondition, "Auction still ongoing");
-        require(!auctionFinalized, "Auction already finalized");
+    function revealBids(bytes calldata decryptionKey) external {
+    require(block.timestamp >= bidCondition, "Auction still ongoing");
+    require(!auctionFinalized, "Auction already finalized");
 
-        uint256 highestBidLocal = 0;
-        address highestBidderLocal = address(0);
+    uint256 highestBidLocal = 0;
+    address highestBidderLocal = address(0);
 
-        for (uint256 i = 0; i < bids.length; i++) {
-            uint8[] memory out = decrypterContract.decrypt(
-                bids[i].encryptedBid,
-                decryptionKey
-            );
+    for (uint256 i = 0; i < bids.length; i++) {
+        (bool success, bytes memory decryptedData) = precompileAddress.call(
+            abi.encodePacked(decryptionKey, bids[i].encryptedBid)
+        );
+
+        // If decryption fails or data is empty, mark the bid as invalid
+        if (!success || decryptedData.length == 0) {
             bids[i].isDecrypted = true;
-            uint256 bidValue = uint8ArrayToUint256(out);
-            if (bidValue > highestBidLocal) {
-                highestBidLocal = bidValue;
-                highestBidderLocal = bids[i].bidder;
-            }
-            bids[i].bidValue = bidValue;
+            bids[i].bidValue = 0; // Mark as invalid
+            continue;
         }
 
-        highestBid = highestBidLocal;
-        highestBidder = highestBidderLocal;
-        auctionFinalized = true;
+        // Decode the bid value, handle variable-length data
+        uint256 bidValue;
+        bidValue = asciiBytesToUint(decryptedData);
 
-        // payable(auctionOwner).transfer(highestBid);
+        // Optional: Validate bidValue is within an acceptable range
+        require(bidValue > 0 && bidValue <= type(uint256).max / 2, "Invalid bid value");
 
-        emit AuctionFinalized(highestBidder, highestBid);
+        // Mark the bid as decrypted
+        bids[i].isDecrypted = true;
+        bids[i].bidValue = bidValue;
+
+        // Update the highest bid and bidder
+        if (bidValue > highestBidLocal) {
+            highestBidLocal = bidValue;
+            highestBidderLocal = bids[i].bidder;
+        }
     }
+
+    // Finalize the auction
+    highestBid = highestBidLocal;
+    highestBidder = highestBidderLocal;
+    auctionFinalized = true;
+
+    emit AuctionFinalized(highestBidder, highestBid);
+}
 
     /**
      * @notice Issues refunds to all non-winning bidders after the auction is finalized.
@@ -151,17 +162,11 @@ contract SealedBidAuctionExample {
         }
     }
 
-    /**
-     * @dev Utility function to convert a `uint8[]` array to a `uint256`.
-     * @param arr The input `uint8[]` array
-     * @return result The resulting `uint256` value
-     */
-   function uint8ArrayToUint256(uint8[] memory arr) public pure returns (uint) {
-        uint result = 0;
-        for (uint i = 0; i < arr.length; i++) {
-            require(arr[i] >= 48 && arr[i] <= 57, "Array contains non-numeric characters");
-            result = result * 10 + (arr[i] - 48);
-        }
-        return result;
+    function asciiBytesToUint(bytes memory data) public pure returns (uint256) {
+    uint256 number;
+    for (uint256 i = 0; i < data.length; i++) {
+        number = number * 10 + (uint8(data[i]) - 48);
     }
+    return number;
+}
 }

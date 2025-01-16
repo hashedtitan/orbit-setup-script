@@ -13,6 +13,6 @@ Update `.test.sh` with your `PRIVATE_KEY`.
 
 `PRIVATE_KEY=0x123...`
 
-Run the test script on the Arbitrum Sepolia tesnet.
+Run the test script on the specified network (via `$rpc-url` `.env` var).
 
 `./test.sh`

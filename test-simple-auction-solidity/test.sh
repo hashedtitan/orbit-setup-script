@@ -28,12 +28,11 @@ DEADLINE_BLOCK=$((CURRENT_BLOCK + 1))
 # Deploy the Solidity contract
 echo -e "${YELLOW}Deploying SealedBidAuctionExample contract...${NC}"
 
-OUTPUT=$(forge create --broadcast --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 test-simple-auction-solidity/SealedBidAuctionExample.sol:SealedBidAuctionExample --constructor-args $DEPLOYED_DECRYPTER_ADDRESS $DEADLINE_BLOCK $FEE)2>/dev/null
+OUTPUT=$(forge create --broadcast --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 test-simple-auction-solidity/SealedBidAuctionExample.sol:SealedBidAuctionExample --constructor-args $DEADLINE_BLOCK $FEE)2>/dev/null
 
 
 echo "Forge Output:"
 echo "$OUTPUT"
-
 
 
 CONTRACT_ADDRESS=$(echo "$OUTPUT" | grep "Deployed to:" | awk '{print $3}')
@@ -41,7 +40,6 @@ echo -e "${GREEN}Contract deployed at address: $CONTRACT_ADDRESS${NC}"
 
 sleep 5
 
-# TODO: - Add link to the docs for more information on the ShareGenerator
 # Generate shares and extract MasterPublicKey to encrypt the bid data. 
 output=$(../ShareGenerator/ShareGenerator generate 1 1 | jq '.')
 KEY_SHARE=$(echo "$output" | jq -r '.Shares[0].Value')
@@ -49,21 +47,29 @@ PUBLIC_KEY=$(echo "$output" | jq -r '.MasterPublicKey')
 echo -e "key share : ${GREEN}$KEY_SHARE${NC}"
 echo -e "${YELLOW}NEW PUBLIC KEY GENERATED: $PUBLIC_KEY"
 
+# User 1 sends ETH to User 2 within Orbit Chain (in docker container)
+RECIPIENT_ADDRESS=$(cast wallet address --private-key $PRIVATE_KEY_2)
+AMOUNT="1000000000000000"  # 0.1 ETH in wei
+
+echo "Funding recipient account within Docker chain..."
+cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 $RECIPIENT_ADDRESS --value $AMOUNT
+
 # User 1 submits a bid using mock bid data from the Rust file
 echo -e "${YELLOW}Submitting encrypted bid from user #1...${NC}"
 
-# TODO: - Add link to the docs for more information on the Encrypter
 cd ../encrypter
 go build
-bid_value=100
+bid_value=200
 Encrypted=$(./encrypter "Random_IBE_ID" $PUBLIC_KEY $bid_value)
 cd ../test-simple-auction-solidity
-BID_DATA=$(python3 convert_to_array.py $Encrypted) 
 
-cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 $CONTRACT_ADDRESS "submitEncryptedBid(uint8[])" "$BID_DATA" --value $FEE
+cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 $CONTRACT_ADDRESS "submitEncryptedBid(bytes)" "0x${Encrypted}" --value $FEE
 echo -e "${GREEN}Encrypted bid submitted!${NC}"
 
-echo -e "${YELLOW}Current block number: ${CURRENT_BLOCK}${NC}"
+#Check Balance
+echo "Balance of PRIVATE_KEY_1: $(cast balance $(cast wallet address --private-key $PRIVATE_KEY_1) --rpc-url $rpc_url)"
+#Check Balance
+echo "Balance of PRIVATE_KEY_2: $(cast balance $(cast wallet address --private-key $PRIVATE_KEY_2) --rpc-url $rpc_url)"
 
 # User 2 submits a bid using mock bid data from the Rust file
 echo -e "${YELLOW}Submitting encrypted bid from user #2...${NC}"
@@ -72,28 +78,24 @@ cd ../encrypter
 bid_value=150
 Encrypted=$(./encrypter "Random_IBE_ID" $PUBLIC_KEY $bid_value)
 cd ../test-simple-auction-solidity
-BID_DATA=$(python3 convert_to_array.py $Encrypted)
 
-# cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_2 $CONTRACT_ADDRESS "submitEncryptedBid(uint8[])" "$BID_DATA" --value $FEE
-# echo -e "${GREEN}Encrypted bid submitted!${NC}"
+cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_2 $CONTRACT_ADDRESS "submitEncryptedBid(bytes)" "0x${Encrypted}" --value $FEE
+echo -e "${GREEN}Encrypted bid submitted!${NC}"
 
-echo -e "${YELLOW}Current block number: ${CURRENT_BLOCK}${NC}"
-
-NEW_BLOCK=$(cast block-number --rpc-url $rpc_url)
-echo -e "${YELLOW}New block number: ${NEW_BLOCK}${NC}"
-
-# TODO: - Add link to the docs for more information on Fairyport, the typical way teams integrating with Fairblock would go forward.
 # Get DECRYPTION_KEY (keyshare) from ShareGenerator submodule
 DECRYPTION_KEY=$(../ShareGenerator/ShareGenerator derive $KEY_SHARE 0 "Random_IBE_ID" | jq -r '.KeyShare')
 
 # Format DECRYPTION_KEY in a way that is needed to test with, named SECRET_KEY
 echo -e "${YELLOW}Keyshare obtained from ShareGenerator: $DECRYPTION_KEY"
-SECRET_KEY=$(python3 convert_to_array.py $DECRYPTION_KEY)
-echo -e "${YELLOW}Formatted Keyshare: $SECRET_KEY"
+echo -e "${YELLOW}Encrypted: $Encrypted"
 
-# Use SECRET_KEY to decrypt bid results
+echo -e "${YELLOW}HASH - DOING A CAST CALL!!!${NC}"
+cast call 0x0000000000000000000000000000000000000094 "0x${DECRYPTION_KEY}${Encrypted}" --rpc-url $rpc_url
+
+# Decrypt bid results
 echo -e "${YELLOW}Revealing bid with secret key...${NC}"
-cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 $CONTRACT_ADDRESS "revealBids(uint8[])" "$SECRET_KEY"
+cast send --rpc-url $rpc_url --private-key $PRIVATE_KEY_1 $CONTRACT_ADDRESS "revealBids(bytes)" "0x${DECRYPTION_KEY}"
+
 echo -e "${GREEN}Bid revealed!${NC}"
 
 sleep 5
