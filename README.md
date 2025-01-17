@@ -34,10 +34,10 @@ As always, please feel free to skip to the respective part you are interested in
 
 ## Quickstart
 
-Firstly, clone both of these repos onto your machine:
+Firstly, clone both of these repos onto your machine, and make sure you use the correct branch:
 
-1. This repo: (Orbit Chain Setup Repo)[https://github.com/hashedtitan/orbit-setup-script]
-2. (nitro Repo with Precompiles)[https://github.com/hashedtitan/nitro]
+1. This repo - **make sure to use the branch `feat/fairblock-demo-orbit-chain`**: (Orbit Chain Setup Repo)[https://github.com/hashedtitan/orbit-setup-script]
+2. This repo - **make sure to use the branch `feat/fairblock-precompile`**: (nitro Repo with Precompiles)[https://github.com/hashedtitan/nitro]
 
 The `nitro` repo will have the pre-compiles within its code and be running a node within a local docker container. The `orbit-setup-script` repo is a fork from Arbitrum Orbit that has pre-deployed chain contract config files within it. These two repos were made for the sake of time for this Quickstart. If you would like to learn more and go through the steps underlying the quickstart today, please see our docs.
 
