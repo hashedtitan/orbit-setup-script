@@ -52,8 +52,6 @@ Make sure you have docker running. If you are new to docker, simply follow the i
 
 Within the `nitro` repo, at the root, run the following command to install the dependencies.
 
-ow update and sync the repo to respect these changes by running the following CLI commands:
-
 ```shell
 git submodule sync
 git submodule update --init --recursive --force
@@ -65,7 +63,7 @@ Within the `orbit-setup-script` repo (this one), run `yarn` to install its depen
 
 First, go to your nitro repo, and find a folder called `quickstart`. Within this folder, you will find a version of `contracts.go` that has the FairBlock pre-compiles already added in.
 
-Move the `contracts.go` to the following location, replacing the `contracts.go` file already there.
+Move the `contracts.go` to the path `go-ethereum/core/vm`, replacing the `contracts.go` file already there.
 
 With that in place, run the following at the root of your nitro repo:
 
