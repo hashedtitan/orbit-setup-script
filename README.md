@@ -10,7 +10,11 @@ V1 is live on testnet with bespoke MPEC and threshold identity-based encryption 
 
 A walk through of this tutorial, alongside context on Fairblock, EVMs, and Arbitrum Orbit is provided in the video below. If you prefer learning by reading on your own, feel free to skip it and continue onward in this README!
 
-[![Fairblock tIBE with EVMs - Orbit Chain Integration Tutorial](https://img.youtube.com/vi/gIzPgSw11uU&ab_channel=FairblockNetwork/0.jpg)](TODO: record and paste new video here)
+<div align="center">
+
+[![Fairblock tIBE with EVMs - Orbit Chain Integration Tutorial](./assets/EVM_Quickstart.png)](https://www.youtube.com/watch?v=79pSFHolMuI&ab_channel=FairblockNetwork)
+
+</div>
 
 This tutorial focuses on the deployment of pre-compiles logic into an EVM, specifically an Arbitrum Orbit chain (L3). The pre-compiles allow developers and traditional EVM smart contracts to integrate with Fairblock Fairyring network, thus unlocking the power of a dynamic confidentiality network.
 
