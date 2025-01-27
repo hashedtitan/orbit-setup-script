@@ -1,14 +1,11 @@
 # Long Version - Fairblock Precompiles on EVMs Showcasing Orbit Chains
 
-<!-- TODO - have a disclaimer on every page, or at least the quickstart / build pages that these walk throughs are not production ready, and are purely for educational purposes. -->
-
-<!-- Outline for this page:
-1. Diagram for how new chain interacts with Fairyring -->
-
 This is the detailed version of the ["Decryption Contracts on EVMs with Orbit Chains" Quickstart](./README.md). It will typically take longer than going through the quickstart, but you will cover extra details including:
 
 - What pre-compiles will go into `contracts.go` and extra dependencies to add to the `nitro` code
 - Setting up your own Orbit chain following the Arbitrum Orbit documentation
+
+> ‼️ All code within this tutorial is purely educational, and it is up to the readers discretion to build their applications following industry standards, practices, and applicable regulations.
 
 Let's get into it.
 
@@ -64,7 +61,6 @@ go get github.com/FairBlock/DistributedIBE/encryption
 
 go get github.com/drand/kyber-bls12381
 ```
-<!-- TODO: is there a way to not have to correct this URL, aka start with the correct URL? Ah yes, I think we could just have our own fork of the nitro repo with our configs set up. Not sure about this because then we'd not keep up to date with the nitro github repo. -->
 
 Now update and sync the repo to respect these changes by running the following CLI commands:
 
@@ -117,34 +113,9 @@ func decrypt(input []byte) ([]byte, error) {
 }
 ```
 
-* Added retConstant and decryption structures by copying and pasting the below to the bottom of the `contracts.go` file as well.
+* Added decryption structures by copying and pasting the below to the bottom of the `contracts.go` file as well.
 
 ```go
-type retConstant struct{}
-
-func (c *retConstant) RequiredGas(input []byte) uint64 {
- return uint64(1024)
-}
-
-var (
- errConstInvalidInputLength = errors.New("invalid input length")
-)
-
-func (c *retConstant) Run(input []byte) ([]byte, error) {
- // Only allow input up to four bytes (function signature)
- if len(input) > 4 {
-  return nil, errConstInvalidInputLength
- }
-
- output := make([]byte, 6)
- for i := 0; i < 6; i++ {
-  output[i] = byte(64 + i)
- }
- return output, nil
-}
-
-...
-
 type decryption struct{}
 
 func (c *decryption) RequiredGas(input []byte) uint64 {
@@ -156,7 +127,7 @@ func (c *decryption) Run(input []byte) ([]byte, error) {
 }
 ```
 
-* Add decryption and retConstant to the appropriate `PrecompiledContract` vars: `PrecompiledContractsIstanbul`, `PrecompiledContractsBerlin`, `PrecompiledContractsCancun`. Simply paste the following into the respective `PrecompiledContract` vars 
+* Add decryption to the appropriate `PrecompiledContract` vars: `PrecompiledContractsIstanbul`, `PrecompiledContractsBerlin`, `PrecompiledContractsCancun`. Simply paste the following into the respective `PrecompiledContract` vars 
 
 ```go
  common.BytesToAddress([]byte{0x94}):&decryption{},
@@ -284,4 +255,4 @@ Your local Orbit chain is now running. Let's recap what you've accomplished thro
 - Connected the `Fairyring Orbit Chain Demo` to an EVM with encryption and decryption functionality, via a modified nitro node, all in a local docker container. 
 - Deployed, and ran a sealed bid auction using the functionality of the Fairblock precompiles on the new EVM Orbit Chain
 
-The key checkpoints highlighted have now provided the key steps to include when modifying your own custom EVM chain to use the Fairyring functionalities. For more specific questions, please reach out either on [Discord](TODO-GET-LINK) or our [open issues repo](TODO-GET-LINK).
+The key checkpoints highlighted have now provided the key steps to include when modifying your own custom EVM chain to use the Fairyring functionalities. For more specific questions, please reach out either on [Discord](https://discord.gg/jhNBCCAMPK) or our [open issues repo](TODO-GET-LINK).

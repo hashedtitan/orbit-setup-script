@@ -28,7 +28,7 @@ By the end of this tutorial, developers will have:
 
 As always, please feel free to skip to the respective part you are interested in. Smart Contract Developers who want to work within an EVM that has Fairblock precompiles can do so by using the [example smart contracts within this repo as a reference](./test-simple-auction-solidity/SealedBidAuctionExample.sol). For chain developers, the details on the precompiles will be of most interest. There are details on the precompiles [near the end of this README](#the-pre-compiles-deployed-into-an-evm).
 
-> If there are any questions, or if you would like to build with the Fairblock ecosystem, please join our [discord](TODO-GetLINK)!
+> If there are any questions, or if you would like to build with the Fairblock ecosystem, please join our [discord](https://discord.gg/jhNBCCAMPK)!
 
 ---
 
@@ -65,15 +65,13 @@ First, go to your nitro repo, and find a folder called `quickstart`. Within this
 
 Move the `contracts.go` to the path `go-ethereum/core/vm`, replacing the `contracts.go` file already there.
 
-With that in place, run the following at the root of your nitro repo:
+Next, go back to the `quickstart` folder and move the `nodeConfig.json` file to the `config` folder. This config file corresponds to the registered Arbitrum Orbit Chain contracts on Arbitrum Sepolia that we have gone ahead and implemented. Again, these are just for educational purposes and not production.
+
+With all that in place, run the following command to regenerate your `nitro-node` docker image locally:
 
 ```bash
 make docker
 ```
-
-This command will regenerate your `nitro-node` docker image locally.
-
-<!-- TODO: troubleshoot this setup, because I think there is a part in the nitros repo setup where the nodeConfig.json is needed -->
 
 Run the following command within the terminal inside of your local nitro repo:
 
@@ -141,17 +139,31 @@ Your local Orbit chain is now running. Let's recap what you've accomplished thro
 - Connected the `Fairyring Orbit Chain Demo` to an EVM with encryption and decryption functionality, via a modified nitro node, all in a local docker container.
 - Deployed, and ran a sealed bid auction using the functionality of the Fairblock precompiles on the new EVM Orbit Chain
 
-The key checkpoints highlighted have now provided the key steps to include when modifying your own custom EVM chain to use the Fairyring functionalities. For more specific questions, please reach out either on [Discord](TODO-GET-LINK) or our [open issues repo](TODO-GET-LINK).
+The key checkpoints highlighted have now provided the key steps to include when modifying your own custom EVM chain to use the Fairyring functionalities. For more specific questions, please reach out either on [Discord](https://discord.gg/jhNBCCAMPK) or our [open issues repo](TODO-GET-LINK).
 
-## Now that you have gone through the quickstart, feel free to dig into other tutorials or build with fellow Fairblock devs! If you would like a bit of detail on pre-compiles and the Sealed Bid Auction example, read onward. Otherwise, consider this the end of the quickstart tutorial!
-
-<!-- TODO: write about the Precompiles here -->
+**Now that you have gone through the quickstart, feel free to dig into other tutorials or build with fellow Fairblock devs! If you would like a bit of detail on pre-compiles and the Sealed Bid Auction example, read onward. Otherwise, consider this the end of the quickstart tutorial!**
 
 ## The Pre-Compiles Deployed into an EVM
 
 The functionality enabled by the Fairblock pre-compiles is highlighted below.
 
-<!-- TODO: past fairblock pre-compiles details here, and write explainer for it -->
+The `nitros` repo is the base EVM code that includes the precompiles, contracts and main functionality of the chain.
+- When it comes to the dependencies, here are some notes:
+  - The IBE encryption, kyber bls dependencies are needed for encryption and the types specifically from the latter library. Some of the sub-modules are not in there, so we need to update the submodules within the nitro repo as well. 
+- When it comes to the actual Pre-Compile implementation logic:
+    - They’re all in one part: contracts.go
+        - Inside contracts.go you’ll see all the details.
+
+The actual code modifications added to the `contracts.go` file within the nitros repo mainly revolve around:
+- The `decrypt()`function
+  - for all of the pre-compiles, there’s an entry point, the RUN function at the bottom.
+  - This function calls the actual function we want, in this case it is decrypt().
+  - The two inputs: decryption key, cyphertext concatenated together where the first 96 bytes is the decryption key and the rest is the cyphertext.
+  - In terms of the rest of the function: we need to convert the decryption key to the right type.
+  - We start with one G2 point (from the BLS library), and need to read the cipherbytes to a cipher buffer.
+  - From there, it uses all of these inputs and calls the Decrypt() library to output the plain text.
+    - DistributedIBE is the library that has DECRYPT() in it and it relies on it
+- Once that is all complete, the appropriate pre-compile address, `0x94` is established in the respective `PrecompileContract` vars such that it can be accessed from said address on the new EVM network that we are revising. In the tutorial's case, it's the Arbitrum Orbit Chain.
 
 ## The Sealed Bid Auction Files
 
