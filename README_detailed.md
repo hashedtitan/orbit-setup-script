@@ -73,6 +73,33 @@ git submodule update --init --recursive --force
 
 The next step is to add in the pre-compile changes. This will be done by modifying the `contracts.go` file that should be found in your copy of the repo. Here you can see where it is found within the remote repo's directories: [nitro-go-ethereum/core/vm/contracts.go](https://github.com/Layr-Labs/nitro-go-ethereum/blob/5a2943c/core/vm/contracts.go) file.
 
+For details regarding the changes outlined below, open up this toggle.
+
+The functionality enabled by the Fairblock pre-compiles is highlighted below.
+
+<details>
+<summary>Details on Code Changes</summary>
+
+The `nitros` repo is the base EVM code that includes the precompiles, contracts and main functionality of the chain.
+- When it comes to the dependencies, here are some notes:
+  - The IBE encryption, kyber bls dependencies are needed for encryption and the types specifically from the latter library. Some of the sub-modules are not in there, so we need to update the submodules within the nitro repo as well. 
+- When it comes to the actual Pre-Compile implementation logic:
+    - They’re all in one part: contracts.go
+        - Inside contracts.go you’ll see all the details.
+
+The actual code modifications added to the `contracts.go` file within the nitros repo mainly revolve around:
+- The `decrypt()`function
+  - for all of the pre-compiles, there’s an entry point, the RUN function at the bottom.
+  - This function calls the actual function we want, in this case it is decrypt().
+  - The two inputs: decryption key, cyphertext concatenated together where the first 96 bytes is the decryption key and the rest is the cyphertext.
+  - In terms of the rest of the function: we need to convert the decryption key to the right type.
+  - We start with one G2 point (from the BLS library), and need to read the cipherbytes to a cipher buffer.
+  - From there, it uses all of these inputs and calls the Decrypt() library to output the plain text.
+    - DistributedIBE is the library that has DECRYPT() in it and it relies on it
+- Once that is all complete, the appropriate pre-compile address, `0x94` is established in the respective `PrecompileContract` vars such that it can be accessed from said address on the new EVM network that we are revising. In the tutorial's case, it's the Arbitrum Orbit Chain.
+
+</details>
+
 * Add in the necessary imports for the encrypted package.
 
 ```go
